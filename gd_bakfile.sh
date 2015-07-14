@@ -87,7 +87,8 @@ Content-Type: $MIME_TYPE
         --header "Content-Type: multipart/related; boundary=\"$BOUNDARY\"" \
         --data-binary "@-" >/dev/null 2>&1
     else
-    	local DATA_JSON="{ \"title\": \"$FILENAME\"}"
+    	local CHUNCK_SIZE="1048576"
+        local DATA_JSON="{ \"title\": \"$FILENAME\"}"
         echo "Data : $DATA_JSON"
         local DATA_SIZE=${#DATA_JSON}
         echo "Data Size : $DATA_SIZE"
@@ -100,20 +101,29 @@ Content-Type: $MIME_TYPE
         --data "$DATA_JSON"`
         echo "First step ended"
         local SESSION_URI=`echo "$RESPONSE" | grep 'Location:' | cut -d ' ' -f 2 | sed 's/\ //g'`
-        local NB_CHUNCK=`expr $(echo $((FILESIZE/1048576)) | cut -d '.' -f 1) + 1`
+        local NB_CHUNCK=`expr $(echo $((FILESIZE/CHUNCK_SIZE)) | cut -d '.' -f 1) + 1`
         echo "FILESIZE : $FILESIZE :: nB_CHUNK : $NB_CHUNCK"
-        for (( CHUNCK = 0; CHUNCK < $NB_CHUNCK; CHUNCK += 1 )); do
-                echo $CHUNCK
-                local START_BYTES=$((CHUNCK*1048576))
-                local END_BYTES=`expr $(($((CHUNCK+1))*1048576)) - 1`
-                echo $START_BYTES
-                echo $END_BYTES
-                if [ "$END_BYTES" -gt "$FILESIZE" ]; then
-                        END_BYTES="$FILESIZE"
-                fi
-                local LENGTH=`expr $((END_BYTES+1)) - $START_BYTES`
-                echo $LENGTH
-                DATA=`dd if=$FULL_PATH skip=$((CHUNCK*1))M bs=1M count=1 status=noxfer 2> /dev/null`
+        local START_BYTES=0
+        local END_BYTES=0
+        local LENGTH=0
+        local HTTP_ERCODE_SERVER="'500 Internal Server Error\|502 Bad Gateway\|503 Service Unavailable\|504 Gateway Timeout'"
+        while [ "$START_BYTES" -lt "$FILESIZE" ]; do
+#	for (( CHUNCK = 0; CHUNCK < $NB_CHUNCK; CHUNCK += 1 )); do
+#               echo $CHUNCK
+#               local START_BYTES=$((CHUNCK*1048576))
+#               local END_BYTES=`expr $(($((CHUNCK+1))*1048576)) - 1`
+#               echo $START_BYTES
+#               echo $END_BYTES
+#               if [ "$END_BYTES" -gt "$FILESIZE" ]; then
+#                       END_BYTES="$FILESIZE"
+#               fi
+#               local LENGTH=`expr $((END_BYTES+1)) - $START_BYTES`
+#               echo $LENGTH
+                END_BYTES=`expr $((START_BYTES + CHUNCK_SIZE)) - 1`
+                LENGTH=`expr $((END_BYTES+1)) - $START_BYTES`
+#               DATA=`dd if=$FULL_PATH skip=$((CHUNCK*1))M bs=1M count=1 status=noxfer 2> /dev/null`
+                DATA=`dd if=$FULL_PATH skip="$START_BYTES"c bs="$CHUNCK_SIZE"c count=1 status=noxfer 2> /dev/null`
+
                 local RESPONSE=`curl -s -D- -X "PUT" "$SESSION_URI" \
                         --header "Authorization: Bearer $ACCESS_TOKEN" \
                         --header "Content-Type: application/json; charset=UTF-8" \
@@ -121,7 +131,34 @@ Content-Type: $MIME_TYPE
                         --header "Content-Type: $MIME_TYPE" \
                         --header "Content-Range: bytes $START_BYTES-$END_BYTES/$FILESIZE" \
                         --data "$DATA"`
-        done
+                if [ `echo "$RESPONSE" | grep '308 Resume Incomplete'` -eq "0" ]; then
+                        START_BYTES=$((`echo "$RESPONSE" | grep 'Range:' | cut -d '-' -f 2` + 1))
+                        continue
+                elif [ `echo "$RESPONSE" | grep '201 Created'` -eq "0" ]; then
+                        break
+                elif [ `echo "$RESPONSE" | grep '404 Not Found'` -eq "0" ]; then
+                        break
+                else
+                    	RESPONSE=""
+                        local RETRY=0
+                        while [ `echo "$RESPONSE" | grep '308 Resume Incomplete'` -eq "0" ]||[ "$RETRY" -le "5" ]; do
+                                local RESPONSE=`curl -s -D- -X "PUT" "$SESSION_URI" \
+                                --header "Authorization: Bearer $ACCESS_TOKEN" \
+                                --header "Content-Length: 0" \
+                                --header "Content-Range: bytes */$FILESIZE"`
+                                if [ `echo "$RESPONSE" | grep $HTTP_ERCODE_SERVER` -eq "0" ]; then
+                                        RETRY=`expr $RETRY + 1`
+                                        local SLEEP_TIME=`expr $((2**RETRY)) + $(( $(( ( RANDOM % 1000 )  + 1 )) / 1000 ))`
+                                        sleep $SLEEP_TIME
+                                fi
+                        done
+                        if [ "$RETRY" -le "5" ]; then
+                                START_BYTES=$((`echo "$RESPONSE" | grep 'Range:' | cut -d '-' -f 2` + 1))
+                        else
+                            	break
+                        fi
+                fi
+	done
 fi
 }
 
