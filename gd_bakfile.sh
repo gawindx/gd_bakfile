@@ -151,7 +151,8 @@ else
 		LENGTH=`expr $((END_BYTES+1)) - $START_BYTES`
 		local RESPONSE=""
 		local RETRY=0
-		local RESPONSE=`chunck_file -i "$FULL_PATH" -c $CHUNCK_SIZE -s $START_BYTES | curl -i --silent --write-out %{http_code} -X $
+		local RESPONSE=`chunck_file -i "$FULL_PATH" -c $CHUNCK_SIZE -s $START_BYTES | \
+			curl -i --silent --write-out %{http_code} -X "PUT" "$SESSION_URI" \
 			--header "Authorization: Bearer $ACCESS_TOKEN" \
 			--header "Content-Type: application/json; charset=UTF-8" \
 			--header "Content-Length: $LENGTH" \
@@ -162,8 +163,8 @@ else
 			local UPLOADED_BYTES=`curl -s -D- -X "PUT" "$SESSION_URI" \
 				--header "Authorization: Bearer $ACCESS_TOKEN" \
 				--header "Content-Length: 0" \
-				--header "Content-Range: bytes */$FILESIZE" 2>&1 | grep 'Range: bytes=' | cut -d '-' -f 2 | sed 's/\ //g'\
-				| sed 's/\n//g'| sed 's/\r//g'`
+				--header "Content-Range: bytes */$FILESIZE" 2>&1 | grep 'Range: bytes=' | cut -d '-' -f 2 \
+				| sed 's/\ //g'	| sed 's/\n//g'| sed 's/\r//g'`
 			START_BYTES=`expr $UPLOADED_BYTES + 1`
 		elif [ ! -z "`echo "$RESPONSE" | grep '201'`" ]; then
 			break
