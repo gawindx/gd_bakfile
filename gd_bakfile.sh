@@ -89,6 +89,9 @@ if [ "$1" == "create" ]; then
 		cut -d ',' -f 1 | cut -d ':' -f 2 | sed 's/"//g' | sed 's/\ //g'`
 	REFRESH_TOKEN=`prettyjson "$RESPONSE" | grep 'refresh_token' | \
 		cut -d ',' -f 1 | cut -d ':' -f 2 | sed 's/"//g' | sed 's/\ //g'`
+	EXPIRE_TIME=`prettyjson "$RESPONSE" | grep 'expires_in' | \
+		cut -d ',' -f 1 | cut -d ':' -f 2 | sed 's/"//g' | sed 's/\ //g'`
+	EXPIRE_TIME=$(($(date +%s)+$EXPIRE_TIME))
 elif [ "$1" == "refresh" ]; then
 	REFRESH_TOKEN="$2"
 	DATA="client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET"
@@ -97,6 +100,9 @@ elif [ "$1" == "refresh" ]; then
 		--data "$DATA"`
 	ACCESS_TOKEN=`prettyjson "$RESPONSE" | grep 'access_token' | \
 		cut -d ',' -f 1 | cut -d ':' -f 2 | sed 's/"//g' | sed 's/\ //g'`
+	EXPIRE_TIME=`prettyjson "$RESPONSE" | grep 'expires_in' | \
+		cut -d ',' -f 1 | cut -d ':' -f 2 | sed 's/"//g' | sed 's/\ //g'`
+	EXPIRE_TIME=$(($(date +%s)+$EXPIRE_TIME))
 fi
 }
 
@@ -138,6 +144,10 @@ else
 	local LENGTH=0
 	local HTTP_ERCODE_SERVER='500|502|503|504'
 	while [ "$START_BYTES" -lt "$FILESIZE" ]; do
+		if [[ $(date +%s) -gt $EXPIRE_TIME ]]; then
+			auth2 refresh "$REFRESH_TOKEN"
+			refresh_opt
+		fi
 		END_BYTES=`expr $((START_BYTES + CHUNCK_SIZE)) - 1`
 		if [ "$END_BYTES" -gt "$FILESIZE" ]; then
 			END_BYTES=$((FILESIZE-1))
@@ -224,6 +234,7 @@ auth2 create
 cat >/usr/local/bin/.gd_bakfile.opt <<EOL
 ACCESS_TOKEN=${ACCESS_TOKEN}
 REFRESH_TOKEN=${REFRESH_TOKEN}
+EXPIRE_TIME=${EXPIRE_TIME}
 EOL
 }
 
@@ -271,9 +282,10 @@ done
 }
 
 function refresh_opt {
-cat >/usr/local/bin/.wpbak2gdrive.opt <<EOL
+cat >/usr/local/bin/.gd_bakfile.opt <<EOL
 ACCESS_TOKEN=${ACCESS_TOKEN}
 REFRESH_TOKEN=${REFRESH_TOKEN}
+EXPIRE_TIME=${EXPIRE_TIME}
 EOL
 }
 
@@ -289,8 +301,10 @@ else
 fi
 if [ -r /usr/local/bin/.gd_bakfile.opt ]; then
 	. /usr/local/bin/.gd_bakfile.opt
-	auth2 refresh $REFRESH_TOKEN
-	refresh_opt
+	if [[ $(date +%s) -gt $EXPIRE_TIME ]]; then
+		auth2 refresh "$REFRESH_TOKEN"
+		refresh_opt
+	fi
 else
 	create_opt
 	. /usr/local/bin/.gd_bakfile.opt
@@ -340,5 +354,9 @@ for file in `ls ${BAKDIR}*.zip`; do
 	fi
 done
 for BAK_FILENAME in "${BAK_TO_GD[@]}"; do
+	if [[ $(date +%s) -gt $EXPIRE_TIME ]]; then
+		auth2 refresh "$REFRESH_TOKEN"
+		refresh_opt
+	fi
 	upload "$ACCESS_TOKEN" "$BAK_FILENAME"
 done
