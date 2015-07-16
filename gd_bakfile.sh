@@ -116,13 +116,15 @@ local FILENAME=$(basename "$FULL_PATH")
 local FILESIZE=$(stat -c%s "$FULL_PATH")
 
 if [ "$FILESIZE" -lt "1048576" ]; then
-	( echo "--$BOUNDARY
+( echo "--$BOUNDARY
 Content-Type: application/json; charset=UTF-8
+
 { \"title\": \"$FILENAME\", \"parents\": [ { \"id\": \"$UPLOAD_DIR_ID\" } ] }
+
 --$BOUNDARY
 Content-Type: $MIME_TYPE
 " \
-&& cat $2 && echo "
+&& cat "$FULL_PATH" && echo "
 --$BOUNDARY--" ) \
 	| curl --silent "https://www.googleapis.com/upload/drive/v2/files/?uploadType=multipart" \
 	--header "Authorization: Bearer $ACCESS_TOKEN" \
