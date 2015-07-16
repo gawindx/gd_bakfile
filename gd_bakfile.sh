@@ -79,8 +79,9 @@ if [ "$1" == "create" ]; then
 		cut -d ':' -f 2  | sed 's/,//g'| sed 's/\ //g'`
 	echo -n "Go to $URL and enter $USER_CODE to grant access to this application. Hit enter when done..."
 	read -t $TOKEN_TTL ENTER_KEY
-	ENTER_KEY=${ENTER_KEY:-timeout}
-#       if [ "$ENTER_KEY" == "timeout" ]; then exit 1
+	if [[ "$?" -ne 0 ]]; then
+		exit 1
+	fi
 	DATA="client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&code=$DEVICE_CODE"
 	DATA="$DATA&grant_type=http://oauth.net/grant_type/device/1.0"
 	RESPONSE=`curl --silent "https://accounts.google.com/o/oauth2/token" \
