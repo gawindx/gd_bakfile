@@ -1,24 +1,17 @@
-What is "gd_bakfile"
+Waht is "gd_bakfile"
 
-"gd_bakfile" is a script that can upload all file in a local directory to a remote directory on Google Drive.
+gd_bakfile is a script that can upload all file in a local directory to a remote directory on Google Drive.
 All that you need is a Google Drive Account and you also  need to create a Google App with Google Drive's Api enabled.
 
 How to Use "gd_bakfile"
 
 First, connect Google's account and go to https://console.developers.google.com/project.
-
 Click on "Create Project", give a name to our project on the new window,  and click "Create".
-
 Refresh the page and click on your project.
-
 Go to "API and authentication"->"API", choose "Drive API" on the right panel then enable it and go back.
-
 Always in "API and authentication", choose "Identifiers" (under "API") and "Create Customer Login".
-
 Select "Installed App", configure "Screen Authorization" and accept.
-
 Now, you have your "Client Id" and "Client Secret", keep the page open.
-
 
 Secondly, copy gd_bakfile's script to "/usr/local/bin/gd_bakfile.sh" :
 nano /usr/local/bin/gd_bakfile.sh
