@@ -1,9 +1,9 @@
-Waht is "gd_bakfile"
+*What is "gd_bakfile"
 
 gd_bakfile is a script that can upload all file in a local directory to a remote directory on Google Drive.
 All that you need is a Google Drive Account and you also  need to create a Google App with Google Drive's Api enabled.
 
-How to Use "gd_bakfile"
+*How to Use "gd_bakfile"
 
 First, connect Google's account and go to https://console.developers.google.com/project.
 Click on "Create Project", give a name to our project on the new window,  and click "Create".
@@ -30,7 +30,7 @@ At first run, you should answer at 5 questions :
 
 Si tout est ok , il va stocker toutes les infos pour une utilisation ultérieure et obtenir tous Token d'autoriser toutes les demandes avenir.
 
-How It Work
+*How It Work
 
 It will get "Acces Token" and "Refresh Token" and he'll automatically get new "Acces Token" when expired.
 With "Acces Token", he'll verify that remote directory exist, if not he'll create him, and get his ID's.
@@ -42,7 +42,8 @@ is erased and local file is uploaded again).
 All files that are only present on local directory are uploaded to remote directory.
 By default, all file larger than 1Mb are uploaded in "resumable" mode with parts of 1Mb.
 
-In case Of trouble
+*In case Of trouble
+
 You can delete the config file (/etc/default/gd_bakfile.conf), it contains all answers from the 5 questions.
 You can also delete the file /usr/local/bin/.gd_bakfile.opt who contains "Acces Token", "Refresh Token" and expiration timestamp of "Acces Token".
 
